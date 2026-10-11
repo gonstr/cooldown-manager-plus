@@ -1,0 +1,21 @@
+local addon = {}
+local chunk = loadfile('CompactModel.lua')
+assert(chunk, 'compact model must exist')
+chunk('ForeverAddonTest', addon)
+local model = addon.CompactModel
+assert(model.SwingProgress(10, 2, 10) == 0)
+assert(model.SwingProgress(10, 2, 11) == 0.5)
+assert(model.SwingProgress(10, 2, 12) == nil, 'expired swings disappear')
+assert(model.SwingProgress(10, 0, 10) == nil, 'invalid durations are ignored')
+local x, width = model.RowPositions(3, 32, 2)
+assert(x[1] == -34 and x[2] == 0 and x[3] == 34 and width == 100)
+local geometry = model.Geometry(3, 5, 32, 2, 10)
+assert(geometry.essentialY == 0 and geometry.utilityY == -34)
+assert(geometry.buffY == 42 and geometry.sparkY == 16)
+assert(geometry.sparkWidth == 100, 'spark spans essentials, not wider utility row')
+local native = model.Geometry(3, 5, 40, 0, 10, 24, 48)
+assert(native.essentialX[2] - native.essentialX[1] == 40)
+assert(native.utilityX[2] - native.utilityX[1] == 24)
+assert(native.utilityY == -32 and native.buffY == 54,
+    'different native icon sizes are preserved while rows touch')
+print('PASS: swing start/progress/expiry, centered icon rows, requested vertical order, spark span')

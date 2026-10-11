@@ -1,0 +1,21 @@
+## Interface: 16001
+## Title: CooldownManagerPlus
+## Notes: Extra settings for the built-in Cooldown Manager.
+## Author: Tom
+## Version: 0.6.0
+## SavedVariables: CooldownManagerPlusDB
+
+Overrides.lua
+BuffLayoutModel.lua
+BuffEligibility.lua
+BuffLayout.lua
+BuffReminder.lua
+DuplicateBuffs.lua
+CenteredRows.lua
+CooldownOptions.lua
+CompactModel.lua
+CompactLayout.lua
+IconStyle.lua
+CooldownTimerLayer.lua
+EntrySettings.lua
+CooldownManagerPlus.lua
