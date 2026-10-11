@@ -5,17 +5,59 @@ Install the addon as `Interface/AddOns/CooldownManagerPlus/`, with `CooldownMana
 
 ## Configuration
 
+Settings are saved automatically in `CooldownManagerPlusDB` using embedded
+AceDB. Each character has its own profile, identified by name and realm, with
+built-in defaults and independent per-icon overrides. General settings apply
+only to that character. No separate Ace3 installation is required.
+
+Characters start fresh with the built-in defaults. Settings from the earlier
+account-wide storage format are discarded.
+Use **Settings → Copy from character** in the fixed bottom footer of the C+ tab to
+replace the current character's CM Plus settings after confirmation. Copies are
+independent. General settings copy across classes; per-icon overrides copy only
+from the same class and only for entries present in native Cooldown Manager data.
+Unknown-class sources copy General settings only. Copying is blocked in combat.
+This copies CM Plus settings only; Blizzard layouts remain unchanged.
+The footer uses an addon-owned Settings dropdown aligned with Blizzard's layout
+selector. It stays visible while scrolling and hides when returning to native tabs.
+
+**Settings → Export settings** opens a copyable `CMP1:` string containing the selected
+Blizzard Cooldown Manager layout, this character's General settings, and per-icon
+overrides with native spell identities. The string is selected automatically;
+press Ctrl+C on Windows or Command+C on Mac to copy it. Select string highlights
+it again. The addon does not call Blizzard's restricted clipboard API.
+The string uses WoW's CBOR/base64 encoding;
+it contains data only. Edit Mode frame positions are outside Blizzard's layout
+export and are not included.
+
+**Settings → Import settings** accepts that string. Click Import to validate and
+apply it, then reload the UI automatically. Invalid strings show an error without
+changing settings. Combined imports require the matching class and specialization. Per-icon
+overrides apply only when their entry's native spell identity matches. Existing
+Blizzard layouts are preserved; an imported layout is added and selected. A Starter
+Layout export selects Blizzard's starter layout instead. Blizzard's layout limit
+still applies. Close and reopen Cooldown Manager to save pending native changes
+before importing. Setup import/export is blocked in combat.
+
+Import preparation uses detached layout-manager and serializer objects with native
+notifications suppressed. Import saves the merged layout string through
+the native persistence API and reloads the UI, leaving live native layout tables
+untouched. The setup dialog and menu are addon-owned.
+
+**Settings → Reset CM Plus settings** restores built-in defaults for the current
+character after confirmation. Other characters and Blizzard layouts are preserved.
+
 The C+ page uses its own scroll frame inside the native window. General settings
-starts expanded and contains separator headers for Display (retro icon style, combat-only essentials and self/target separation),
+starts expanded and contains separator headers for Display (combat visibility, self/target separation and icon zoom),
 Utility (swing timer spark), and Buff display (buff-timer suppression and duplicate-buff hiding).
 Below the global settings are three native category accordions: Buffs, Essential spells
 and Utility spells. All three categories start collapsed. Empty categories
 are omitted, and expansion choices are retained while switching tabs during the session.
 The native scroll content and scroll position stay untouched when switching tabs.
 
-- **Use retro icon style**: combines the compact layout and 30% icon zoom
-  with thin black borders in one theme checkbox. Keeps native icon sizes.
-  Existing compact or zoom selections enable this theme automatically.
+- **Zoom icons**: crops 15% from each edge of icon textures and adds thin black
+  borders. Appears at the bottom of Display. Keeps native icon sizes and the
+  existing close icon arrangement.
   Compact layout uses one buff row above essentials, utility below. Preserves icon sizes
   from Edit Mode and anchors icons directly to their neighbors. Accounts for the
   native art's transparent padding so the visible icons touch.
@@ -36,7 +78,7 @@ The native scroll content and scroll position stay untouched when switching tabs
   stay at the same vertical positions when entering or leaving combat.
 - **Separate self and target buffs**: rearranges icons within the existing native
   tracked-buff viewer, self on the left and target on the right with a fixed
-  16-unit extra gap. Works with and without retro icon style. No new viewer or
+  16-unit extra gap. Works with and without icon zoom. No new viewer or
   Edit Mode bar is created. Uses readable native aura-unit metadata, retaining
   the last observed group for missing effects; unknown effects default to self.
   Tracked buffs keep their slots when inactive or hidden, so remaining icons do
@@ -87,7 +129,7 @@ Dropdowns default to Use default. Customized marks entries with exceptions hidde
 in the editor; checking Always show alone does not add that marker. Reset overrides
 restores the editor's options and keeps the visible Always show choice. Only one editor
 opens at a time. Click outside, click its close button, collapse its category, or switch
-tabs to dismiss it. The compact theme, self/target separation and integrated spark
+tabs to dismiss it. Icon zoom, self/target separation and the integrated spark
 remain global settings.
 
 Manual player/target assignment controls and adjustable gap remain removed. The
@@ -98,12 +140,20 @@ per-effect visibility overrides rather than duplicating that native setting.
 
 ## Try it
 
-Use `/reload`, open Cooldown Manager settings, and select the teal plus tab. Check retro icon style at
+Check the footer's copy submenu, reset confirmation, and export dialog. Export a
+named Blizzard layout, change a CM Plus setting, paste the exported string, then
+import and reload. Verify both settings sets, other saved layouts, and per-icon
+overrides. Test invalid input, a different class/spec, and combat rejection. After
+import, open native tabs and drag icons between displayed and hidden categories;
+check for taint errors. Native C encoding, rendering and secure execution need
+in-game verification; standalone tests use API substitutes for those boundaries.
+
+Use `/reload`, open Cooldown Manager settings, and select the teal plus tab. Check icon zoom at
 normal and non-default icon sizes. Verify essentials/utility touch and buffs form
 one row. Toggle combat-only essentials and enter/leave combat; utility should be
 unaffected. Move Essential Cooldowns in Edit Mode to position the compact group.
-Disable retro icon style and sparks to restore the original presentation.
-Toggle retro icon style to check the cropped appearance, thin black border and restoration.
+Disable icon zoom and sparks to restore the original presentation.
+Toggle icon zoom to check the cropped appearance, thin black border and restoration.
 
 For duplicate hiding, track the same effect in the buff row and a spell row. Verify
 it disappears only while that spell icon visibly displays the aura timer; hide the

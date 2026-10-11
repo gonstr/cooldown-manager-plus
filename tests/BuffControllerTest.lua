@@ -65,6 +65,7 @@ function viewer:SetHideWhenInactive() end
 BuffIconCooldownViewer = viewer
 assert(loadfile('Overrides.lua'))('ForeverAddonTest', addon)
 assert(loadfile('BuffLayoutModel.lua'))('ForeverAddonTest', addon)
+addon.Settings = dofile('tests/DatabaseEnvironment.lua')('Hunter', 'Realm')
 assert(loadfile('BuffLayout.lua'))('ForeverAddonTest', addon)
 drain()
 addon.Buffs:SetEffect(2, 'alwaysShow', true)
@@ -171,12 +172,6 @@ addon.Buffs:Apply()
 assert(player.shown, 'buff returns as soon as no visible duplicate exists')
 addon.Buffs:ResetOverrides(1)
 assert(not addon.Buffs:GetDB().effects[1], 'per-buff reset clears shared Always show and dropdown overrides')
-
-CooldownManagerPlusDB = {optionsVersion=2,effects={[1]={alwaysShow=true,notifyMissing=true}},spellTimers={[1]=false,[2]=true}}
-local migrated = addon.Buffs:GetDB()
-assert(migrated.notifyMissingSelfBuffs and migrated.replaceCooldownTimers, 'previous selections migrate to global options')
-assert(migrated.spellTimers == nil and migrated.effects[1].notifyMissing == nil, 'obsolete per-icon settings removed')
-assert(migrated.effects[1].alwaysShow, 'Always show selections are retained')
 
 assert(registeredEvents.PLAYER_REGEN_DISABLED and registeredEvents.PLAYER_REGEN_ENABLED, 'reminders refresh on both combat boundaries')
 local reminderUpdates=0

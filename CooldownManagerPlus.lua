@@ -34,7 +34,74 @@ local function InstallTab()
     local content = CreateFrame("Frame", nil, scroll)
     content:SetSize(300, 1)
     scroll:SetScrollChild(content)
-    local RefreshRows
+    local RefreshRows, entrySettings
+
+    -- Own the footer as well as the scroll frame. Native controls keep their
+    -- parent, anchors, menu generator, and callbacks throughout tab changes.
+    local footer = CreateFrame('Frame', nil, settings)
+    footer:SetFrameLevel(panel:GetFrameLevel())
+    if settings.LayoutDropdown then
+        footer:SetAllPoints(settings.LayoutDropdown)
+    else
+        footer:SetSize(300, 32)
+        footer:SetPoint('BOTTOMLEFT', settings, 'BOTTOMLEFT', 16, 10)
+    end
+    footer:Hide()
+    local copyDropdown = CreateFrame('DropdownButton', nil, footer, 'WowStyle1DropdownTemplate')
+    copyDropdown:SetAllPoints(footer)
+    copyDropdown:SetDefaultText('Settings')
+    local setupDialog = addon.SetupDialog:Create(settings)
+    copyDropdown:SetScript('OnEnter', function(self)
+        GameTooltip:SetOwner(self, 'ANCHOR_RIGHT')
+        GameTooltip:SetText('Copy, import, export, or reset settings.', nil, nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    copyDropdown:SetScript('OnLeave', function() GameTooltip:Hide() end)
+    StaticPopupDialogs.COOLDOWNMANAGERPLUS_COPY_CHARACTER = {
+        text='Replace this character\'s CM Plus settings with settings from %s?\n\n%s',
+        button1='Copy', button2=CANCEL or 'Cancel',
+        timeout=0, whileDead=true, hideOnEscape=true, preferredIndex=3,
+        OnAccept=function(_, data)
+            local ok, message = addon.Settings:CopyCharacter(data.name)
+            if not ok then print('CooldownManagerPlus: ' .. message) end
+            entrySettings:CloseEditor()
+            RefreshRows()
+        end,
+    }
+    StaticPopupDialogs.COOLDOWNMANAGERPLUS_RESET_SETTINGS = {
+        text='Reset this character\'s CM Plus settings?',
+        button1='Reset', button2=CANCEL or 'Cancel',
+        timeout=0, whileDead=true, hideOnEscape=true, preferredIndex=3,
+        OnAccept=function()
+            local ok, message=addon.Settings:Reset()
+            if not ok then print('CooldownManagerPlus: ' .. message) end
+            entrySettings:CloseEditor()
+            RefreshRows()
+        end,
+    }
+    copyDropdown:SetupMenu(function(_, root)
+        local characters = addon.Settings:GetCharacters()
+        local submenu = root:CreateButton('Copy from character')
+        submenu:SetEnabled(#characters > 0)
+        for _, name in ipairs(characters) do
+            local character = name
+            submenu:CreateButton(character, function()
+                entrySettings:CloseEditor()
+                local scope = addon.Settings:CanCopyOverrides(character)
+                    and 'Copies General settings and compatible per-icon overrides.'
+                    or 'Copies General settings only.'
+                StaticPopup_Show('COOLDOWNMANAGERPLUS_COPY_CHARACTER', character, scope, {name=character})
+            end)
+        end
+        root:CreateDivider()
+        root:CreateButton('Import settings', function() entrySettings:CloseEditor(); setupDialog:OpenImport() end)
+        root:CreateButton('Export settings', function() entrySettings:CloseEditor(); setupDialog:OpenExport() end)
+        root:CreateDivider()
+        root:CreateButton('Reset CM Plus settings', function()
+            entrySettings:CloseEditor()
+            StaticPopup_Show('COOLDOWNMANAGERPLUS_RESET_SETTINGS')
+        end)
+    end)
 
     local function Checkbox(label, onClick)
         local button = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
@@ -50,7 +117,7 @@ local function InstallTab()
         return button
     end
 
-    local themeToggle = Checkbox("Use retro icon style", function(checked)
+    local themeToggle = Checkbox("Zoom icons", function(checked)
         local db = addon.Buffs:GetDB()
         db.classAuraStyle = checked == true
         db.compact, db.iconZoom = db.classAuraStyle, db.classAuraStyle
@@ -105,7 +172,7 @@ local function InstallTab()
     end)
     duplicateToggle:SetScript('OnLeave', function() GameTooltip:Hide() end)
     local descriptions = {
-        {themeToggle, "Compact, cropped icons with thin borders."},
+        {themeToggle, "Zoom in on icons and add thin borders."},
         {combatToggle, "Show Essential icons in combat."},
         {utilityCombatToggle, "Show Utility icons in combat."},
         {centerToggle, "Center each row as visible icons change. Keep the gap between groups."},
@@ -141,7 +208,7 @@ local function InstallTab()
     end)
     general:SetScript("OnLeave", function() GameTooltip:Hide() end)
     local headers = {}
-    local entrySettings = addon.EntrySettings:Create(content, function() RefreshRows() end, panel)
+    entrySettings = addon.EntrySettings:Create(content, function() RefreshRows() end, panel)
     RefreshRows = function()
         local db = addon.Buffs:GetDB()
         themeToggle:SetChecked(db.classAuraStyle == true)
@@ -162,7 +229,7 @@ local function InstallTab()
         content:SetWidth(math.max(280, scroll:GetWidth()))
         for _, header in pairs(headers) do header:Hide() end
         local sections = {
-            {name="Display", controls={themeToggle, separateToggle, centerToggle, notifyToggle, combatToggle, utilityCombatToggle}},
+            {name="Display", controls={separateToggle, centerToggle, notifyToggle, combatToggle, utilityCombatToggle, themeToggle}},
             {name="Utility", controls={swingToggle}},
             {name="Buff display", controls={timerToggle, duplicateToggle}},
         }
@@ -219,8 +286,8 @@ local function InstallTab()
         content:SetHeight(math.max(60, offset))
         scroll:UpdateScrollChildRect()
     end
-    panel:SetScript("OnShow", RefreshRows)
-    panel:SetScript("OnHide", function() entrySettings:CloseEditor() end)
+    panel:SetScript("OnShow", function() RefreshRows(); footer:Show() end)
+    panel:SetScript("OnHide", function() footer:Hide(); setupDialog:Hide(); entrySettings:CloseEditor() end)
 
     -- Use the same side-tab art as Blizzard, without inheriting its parentArray.
     local tab = CreateFrame("Frame", nil, settings, "LargeSideTabButtonTemplate")

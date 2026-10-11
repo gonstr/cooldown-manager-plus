@@ -21,7 +21,8 @@ function methods:SetWidth(v) self.width=v end
 function methods:SetHeight(v) self.height=v end
 function methods:SetChecked(v) self.checked=v end
 function methods:GetChecked() return self.checked end
-function methods:EnableMouse() end
+function methods:EnableMouse(value) self.mouseEnabled=value end
+function methods:EnableKeyboard(value) self.keyboardEnabled=value end
 function methods:SetPropagateMouseClicks(value) self.propagateMouseClicks=value end
 function methods:SetFrameStrata(value) self.strata=value end
 function methods:SetClampedToScreen() end
@@ -35,7 +36,8 @@ function methods:IsEnabled() return self.enabled end
 function methods:SetMotionScriptsWhileDisabled() end
 function methods:SetTextColor() end
 function methods:SetWordWrap() end
-function methods:SetText(v) self.text=v end
+function methods:SetText(v) self.text=v; if self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end end
+function methods:GetText() return self.text or '' end
 function methods:SetupMenu(fn) self.menuGenerator=fn end
 function methods:SetDefaultText(text) self.defaultText=text end
 function methods:SetTexture(v) self.texture=v end
@@ -58,6 +60,10 @@ function methods:SetScrollChild(v) self.child=v end
 function methods:GetVerticalScroll() return self.position or 0 end
 function methods:SetVerticalScroll(v) self.position=v end
 for _, name in ipairs({'SetAllPoints','SetSize','SetJustifyH','SetFrameLevel','SetVertexColor','RegisterEvent','UnregisterAllEvents','InitializeIconAnchoring','UpdateScrollChildRect'}) do methods[name]=function() end end
+for _, name in ipairs({'SetMultiLine','SetAutoFocus','SetFontObject','SetTextInsets','SetMaxLetters','SetFocus','ClearFocus','HighlightText'}) do methods[name]=function() end end
+function methods:SetFocus() self.focused=true end
+function methods:ClearFocus() self.focused=false end
+function methods:SetAllPoints(target) self.allPoints=target end
 CreateFrame=function(_,_,p,t) local f=frame(p,t); if t=='LargeSideTabButtonTemplate' then f.Icon=frame(f) elseif t=='ListHeaderThreeSliceTemplate' then f.Name=frame(f) elseif t=='ScrollFrameTemplate' then f.ScrollBar=frame(f) end; return f end
 local hooks={}
 hooksecurefunc=function(_,name,fn) hooks[name]=fn end
@@ -72,6 +78,9 @@ settings.SpellsTab=frame(settings)
 settings.TabButtons={settings.SpellsTab}
 settings.SetDisplayMode=function() end
 settings.SearchBox=frame(settings)
+settings.LayoutDropdown=frame(settings)
+settings.LayoutDropdown.menuGenerator=function() error('native menu must not be replaced or invoked') end
+local nativeLayoutMenu=settings.LayoutDropdown.menuGenerator
 CooldownViewerSettings=settings
 UIParent=frame()
 NORMAL_FONT_COLOR={}
@@ -79,6 +88,14 @@ EssentialCooldownViewer={}
 UtilityCooldownViewer={}
 local db={}
 local addon={Buffs={GetDB=function() return db end,Refresh=function() end,GetEntries=function() return {} end},Cooldowns={}}
+addon.Settings={GetCharacters=function() return {'Other - Realm'} end, CanCopyOverrides=function() return false end,
+    CopyCharacter=function(_,name) db.copiedFrom=name; return true end,
+    Reset=function() db.didReset=true; return true end}
+addon.SettingsTransfer={Export=function() return 'CMP1:export' end,
+    Import=function(_,text) if text~='valid' then return false,'Invalid string.' end; db.didImport=true; return true end}
+StaticPopupDialogs={}
+local pendingCopy
+StaticPopup_Show=function(key, name, scope, data) pendingCopy={key=key,name=name,scope=scope,data=data} end
 addon.Cooldowns.GetEntries=function(_,viewer)
     if viewer==EssentialCooldownViewer then return {{key=1,name='Example',item={supported=true},options=addon.Overrides.Get(db,'spell',1)}, {key=3,name='Charge spell',item={},options={}}}
     elseif viewer==UtilityCooldownViewer then return {{key=2,name='Utility example',item={supported=true},options=addon.Overrides.Get(db,'spell',2)}} end
@@ -96,6 +113,7 @@ addon.Compact = {GetSparkViewer=function() return eligible and EssentialCooldown
 GameTooltip = {SetOwner=function() end, SetText=function(_,text) GameTooltip.text=text end, Show=function() end, Hide=function() end}
 assert(loadfile('Overrides.lua'))('ForeverAddonTest', addon)
 assert(loadfile('EntrySettings.lua'))('RenamedAddon',addon)
+assert(loadfile('UI/SetupDialog.lua'))('RenamedAddon',addon)
 assert(loadfile('CooldownManagerPlus.lua'))('RenamedAddon',addon)
 local function find(predicate)
     for _,f in ipairs(frames) do if predicate(f) then return f end end
@@ -109,6 +127,48 @@ end
 local function toggle(name)
     return find(function(f) return f.label and f.label.text==name and f.template=='UICheckButtonTemplate' end)
 end
+local copyDropdown = find(function(f) return f.template=='WowStyle1DropdownTemplate' and f.defaultText=='Settings' end)
+assert(copyDropdown, 'character copy dropdown is available in settings')
+local copyFooter=copyDropdown.parent
+assert(copyFooter.parent==settings and copyFooter.allPoints==settings.LayoutDropdown, 'copy control belongs to an independent fixed footer aligned with the native dropdown')
+assert(not copyFooter.shown, 'addon footer starts hidden')
+local menu={}
+local function menuNode(entries)
+    return {CreateDivider=function() end,CreateTitle=function() end,CreateButton=function(_,label,callback)
+        local item={callback=callback,children={}}; entries[label]=item
+        return menuNode(item.children)
+    end,SetEnabled=function() end}
+end
+copyDropdown.menuGenerator(nil,menuNode(menu))
+assert(menu['Import settings'] and menu['Export settings'] and menu['Reset CM Plus settings'], 'footer contains import, export and reset')
+menu['Copy from character'].children['Other - Realm'].callback()
+assert(pendingCopy and not db.copiedFrom, 'copy requires confirmation before replacing settings')
+StaticPopupDialogs[pendingCopy.key].OnAccept(nil,pendingCopy.data)
+assert(db.copiedFrom=='Other - Realm', 'confirmed copy applies the selected character')
+menu['Reset CM Plus settings'].callback()
+assert(not db.didReset, 'reset requires confirmation')
+StaticPopupDialogs[pendingCopy.key].OnAccept(nil,pendingCopy.data)
+assert(db.didReset, 'confirmed reset restores current character settings')
+menu['Import settings'].callback()
+local setupDialog=find(function(f) return f.edit and f.action and f.status end)
+assert(setupDialog and setupDialog.shown, 'import opens addon-owned setup dialog')
+assert(setupDialog.edit.mouseEnabled and setupDialog.edit.keyboardEnabled and setupDialog.edit.point, 'input has explicit anchoring and accepts mouse and keyboard input')
+setupDialog.edit:ClearFocus()
+setupDialog.edit.parent.scripts.OnMouseDown()
+assert(setupDialog.edit.focused, 'clicking the empty input viewport focuses the editable field')
+setupDialog.edit:SetText('invalid'); setupDialog.action.scripts.OnClick()
+assert(not db.didImport and setupDialog.status.text=='Invalid string.', 'invalid input is displayed without applying settings')
+setupDialog.edit:SetText('valid'); setupDialog.action.scripts.OnClick()
+assert(db.didImport and setupDialog.action.text=='Import', 'one import click validates and applies a valid setup')
+setupDialog:Hide()
+menu['Export settings'].callback()
+assert(setupDialog.edit.text=='CMP1:export' and setupDialog.action.text=='Select string', 'export displays selectable combined string')
+CopyToClipboard=function() error('clipboard API is restricted to Blizzard') end
+local selected=false
+setupDialog.edit.HighlightText=function() selected=true end
+setupDialog.action.scripts.OnClick()
+assert(selected, 'export action selects text for manual copying without calling restricted APIs')
+setupDialog:Hide()
 local function editor()
     return find(function(f) return f.template=='BackdropTemplate' and f.title and f.shown end)
 end
@@ -121,6 +181,7 @@ end
 local tab=find(function(f) return f.template=='LargeSideTabButtonTemplate' end)
 assert(tab.Icon.texture=='Interface\\AddOns\\RenamedAddon\\Media\\TealPlus')
 tab.click(nil,'LeftButton',true)
+assert(copyFooter.shown and not settings.LayoutDropdown.shown, 'addon page shows its own footer in place of the native control')
 assert(settings.CooldownScroll.child==original and original.shown, 'addon tab never replaces or hides native scroll content')
 assert(settings.CooldownScroll.position==37, 'addon tab leaves native scroll position untouched')
 assert(find(function(f) return f.template=='ScrollFrameTemplate' end), 'addon scrolling uses the same template as native pages')
@@ -134,10 +195,10 @@ assert(general and not general.collapsed, 'General settings starts expanded')
 general.scripts.OnEnter(general)
 assert(GameTooltip.text=='Display options and addon features.')
 general.scripts.OnClick(general)
-assert(general.collapsed and not toggle('Use retro icon style').shown, 'collapsing General settings hides top options')
+assert(general.collapsed and not toggle('Zoom icons').shown, 'collapsing General settings hides top options')
 assert(header('Essential spells').shown, 'per-icon categories remain accessible')
 general.scripts.OnClick(general)
-assert(toggle('Use retro icon style').shown, 'expanding General settings restores top options')
+assert(toggle('Zoom icons').shown, 'expanding General settings restores top options')
 local centerToggle=toggle('Center icons')
 assert(centerToggle and not centerToggle.checked, 'centering defaults to fixed positions')
 centerToggle:SetChecked(true); centerToggle.scripts.OnClick(centerToggle)
@@ -149,6 +210,8 @@ assert(not sparkToggle.enabled)
 sparkToggle.scripts.OnEnter(sparkToggle)
 assert(GameTooltip.text:find('at least 3',1,true))
 hooks.SetDisplayMode()
+assert(not copyFooter.shown and settings.LayoutDropdown.shown, 'native page restores its dropdown and hides the addon footer')
+assert(settings.LayoutDropdown.menuGenerator==nativeLayoutMenu, 'native dropdown behavior remains unchanged')
 assert(settings.CooldownScroll.child==original and original.shown and settings.CooldownScroll.position==37)
 eligible=true
 addon.Buffs.GetEntries=function() return {
@@ -225,8 +288,12 @@ tab.click(nil,'LeftButton',true)
 assert(buffs.collapsed, 'category expansion is remembered when switching tabs')
 buffs.scripts.OnClick(buffs)
 selfRow.options.scripts.OnClick(selfRow.options)
+menu['Import settings'].callback()
+assert(setupDialog.shown and not editor(), 'opening setup dialog releases the per-icon editor dismissal layer')
 settings.scripts.OnHide()
+assert(not setupDialog.shown, 'closing the manager also closes the addon setup dialog')
 assert(not editor() and not dismiss.shown, 'leaving addon page closes editor and outside-click layer')
 assert(settings.CooldownScroll.child==original and original.shown)
 assert(settings.CooldownScroll.ScrollBar:GetAlpha()==0.7, 'leaving addon page restores native scrollbar appearance')
+assert(not copyFooter.shown and settings.LayoutDropdown.shown, 'closing settings restores the native footer')
 print('PASS: flat category lists, inline Always show, anchored scoped editor, customization/reset, dismissal and native scroll restoration')

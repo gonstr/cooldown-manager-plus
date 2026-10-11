@@ -5,6 +5,13 @@
 ## Version: 0.6.0
 ## SavedVariables: CooldownManagerPlusDB
 
+Libs/LibStub/LibStub.lua
+Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua
+Libs/AceDB-3.0/AceDB-3.0.lua
+Core/Settings.lua
+Core/NativeSettingsTransfer.lua
+Core/SettingsTransfer.lua
+
 Overrides.lua
 BuffLayoutModel.lua
 BuffEligibility.lua
@@ -18,4 +25,5 @@ CompactLayout.lua
 IconStyle.lua
 CooldownTimerLayer.lua
 EntrySettings.lua
+UI/SetupDialog.lua
 CooldownManagerPlus.lua

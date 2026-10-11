@@ -13,42 +13,7 @@ local function IsReadable(value)
 end
 
 function controller:GetDB()
-    if type(CooldownManagerPlusDB) ~= 'table' then
-        CooldownManagerPlusDB = {}
-    end
-    local db = CooldownManagerPlusDB
-    if db.centerIcons == nil then db.centerIcons = db.centerBuffs == true end
-    db.centerBuffs = nil
-    db.cooldownsOnly = nil -- Removed: overriding native aura display taints secret aura access.
-    db.effects = db.effects or {}
-    if not db.simpleBuffOptions then
-        if db.replaceCooldownTimers == nil and db.spellTimers then
-            db.replaceCooldownTimers = false
-            for _, enabled in pairs(db.spellTimers) do
-                if enabled then db.replaceCooldownTimers = true; break end
-            end
-        end
-        if db.notifyMissingSelfBuffs == nil then
-            db.notifyMissingSelfBuffs = false
-            for _, effect in pairs(db.effects) do
-                if effect.notifyMissing then db.notifyMissingSelfBuffs = true; break end
-            end
-        end
-        db.spellTimers = nil
-        for _, effect in pairs(db.effects) do effect.notifyMissing = nil end
-        db.simpleBuffOptions = true
-    end
-    if db.optionsVersion ~= 2 then
-        db.observedGroups, db.gap, db.split, db.cooldowns = nil, nil, nil, nil
-        for _, effect in pairs(db.effects) do effect.group = nil end
-        db.optionsVersion = 2
-    end
-    if db.swingSparks == nil then db.swingSparks = db.compact == true end
-    if db.classAuraStyle == nil then
-        db.classAuraStyle = db.compact == true or db.iconZoom == true
-        db.compact, db.iconZoom = db.classAuraStyle, db.classAuraStyle
-    end
-    return db
+    return addon.Settings:GetDB()
 end
 
 function controller:GetEntries()
