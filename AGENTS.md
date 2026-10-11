@@ -3,7 +3,7 @@
 ## Project
 
 CooldownManagerPlus extends Blizzard's built-in WoW Cooldown Manager. This is a
-Lua addon, not a standalone application. Read `README.md` for current behavior
+Lua addon, not a standalone application. Read `README.md` for the overview and installation
 and `CooldownManagerPlus.toc` for the target interface, saved variable name, and
 module load order. No build step or package manager is required.
 
@@ -21,7 +21,7 @@ module load order. No build step or package manager is required.
 - `BuffEligibility.lua`, `BuffReminder.lua`: eligibility and missing-self-buff reminders.
 - `DuplicateBuffs.lua`: generic detection of effects already displayed on spell icons.
 - `CooldownOptions.lua`, `CenteredRows.lua`: spell visibility and row centering.
-- `CompactLayout.lua`, `CompactModel.lua`, `IconStyle.lua`: retro icon style and swing spark.
+- `CompactLayout.lua`, `CompactModel.lua`, `IconStyle.lua`: icon zoom, layout, and swing spark.
 - `CooldownTimerLayer.lua`: visual timer replacement.
 - `Media/`: shipped texture assets. Asset paths must use the installed addon name.
 - `tests/`: standalone Lua tests with simulated WoW frames and APIs.
@@ -89,6 +89,11 @@ restrictions. State those limits when reporting results. For affected features,
 request an in-game check covering combat transitions, Edit Mode, target changes,
 and settings changes as appropriate. For settings integration changes, also
 check dragging icons between Blizzard's displayed and hidden categories.
+
+For settings transfer changes, export a named native layout, change a CM Plus
+setting, then import the exported string. Verify both settings sets after reload
+and confirm other native layouts remain available. Check invalid strings,
+class/spec mismatches, and combat rejection before testing native icon dragging.
 
 Documentation-only and simple wording changes need proportionate checks; do not
 add tests that merely repeat the implementation.
