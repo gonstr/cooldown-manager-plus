@@ -2,7 +2,7 @@
 ## Title: CooldownManagerPlus
 ## Notes: Extra settings for the built-in Cooldown Manager.
 ## Author: Tom
-## Version: 0.6.0
+## Version: @project-version@
 ## SavedVariables: CooldownManagerPlusDB
 
 Libs/LibStub/LibStub.lua
