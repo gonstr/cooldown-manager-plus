@@ -15,3 +15,9 @@ and can be copied or shared using import/export. Required libraries are included
 3. Open Cooldown Manager settings and select the teal plus tab.
 
 Development guidance and test commands are in [AGENTS.md](AGENTS.md).
+
+## License
+
+CooldownManagerPlus is licensed under the [MIT License](LICENSE).
+Bundled libraries in `Libs/` retain their upstream licenses and copyright
+notices; see [Libs/LICENSE.txt](Libs/LICENSE.txt) and the library source files.
