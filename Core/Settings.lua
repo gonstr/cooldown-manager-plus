@@ -9,7 +9,6 @@ local defaults = {profile = {
     notifyMissingSelfBuffs=false, replaceCooldownTimers=false,
     hideDuplicateBuffs=false, effects={}, spellOverrides={},
 }}
-settings.defaults = defaults.profile
 
 function settings:GetDB()
     if self.database and self.database.sv == CooldownManagerPlusDB then
@@ -71,23 +70,4 @@ function settings:Apply()
     if addon.Cooldowns then addon.Cooldowns:QueueUpdate() end
     if addon.Buffs then addon.Buffs:Refresh() end
     if addon.TimerLayer then addon.TimerLayer:Refresh() end
-end
-
-function settings:Reset()
-    if InCombatLockdown and InCombatLockdown() then return false, 'Leave combat before resetting settings.' end
-    self:GetDB()
-    self.database:ResetProfile()
-    local _, class = UnitClass('player')
-    self.database.profile.characterClass = class
-    self:Apply()
-    return true
-end
-
-function settings:Replace(values)
-    self:GetDB()
-    self.database:ResetProfile()
-    local profile = self.database.profile
-    for key, value in pairs(values) do profile[key] = value end
-    local _, class = UnitClass('player')
-    profile.characterClass = class
 end

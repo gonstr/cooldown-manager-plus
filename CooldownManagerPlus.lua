@@ -34,7 +34,7 @@ local function InstallTab()
     local content = CreateFrame("Frame", nil, scroll)
     content:SetSize(300, 1)
     scroll:SetScrollChild(content)
-    local RefreshRows, entrySettings
+    local RefreshRows
 
     -- Own the footer as well as the scroll frame. Native controls keep their
     -- parent, anchors, menu generator, and callbacks throughout tab changes.
@@ -49,11 +49,10 @@ local function InstallTab()
     footer:Hide()
     local copyDropdown = CreateFrame('DropdownButton', nil, footer, 'WowStyle1DropdownTemplate')
     copyDropdown:SetAllPoints(footer)
-    copyDropdown:SetDefaultText('Settings')
-    local setupDialog = addon.SetupDialog:Create(settings)
+    copyDropdown:SetDefaultText('Copy from character')
     copyDropdown:SetScript('OnEnter', function(self)
         GameTooltip:SetOwner(self, 'ANCHOR_RIGHT')
-        GameTooltip:SetText('Copy, import, export, or reset settings.', nil, nil, nil, nil, true)
+        GameTooltip:SetText('Copy settings from another character.', nil, nil, nil, nil, true)
         GameTooltip:Show()
     end)
     copyDropdown:SetScript('OnLeave', function() GameTooltip:Hide() end)
@@ -64,43 +63,24 @@ local function InstallTab()
         OnAccept=function(_, data)
             local ok, message = addon.Settings:CopyCharacter(data.name)
             if not ok then print('CooldownManagerPlus: ' .. message) end
-            entrySettings:CloseEditor()
-            RefreshRows()
-        end,
-    }
-    StaticPopupDialogs.COOLDOWNMANAGERPLUS_RESET_SETTINGS = {
-        text='Reset this character\'s CM Plus settings?',
-        button1='Reset', button2=CANCEL or 'Cancel',
-        timeout=0, whileDead=true, hideOnEscape=true, preferredIndex=3,
-        OnAccept=function()
-            local ok, message=addon.Settings:Reset()
-            if not ok then print('CooldownManagerPlus: ' .. message) end
-            entrySettings:CloseEditor()
             RefreshRows()
         end,
     }
     copyDropdown:SetupMenu(function(_, root)
         local characters = addon.Settings:GetCharacters()
-        local submenu = root:CreateButton('Copy from character')
-        submenu:SetEnabled(#characters > 0)
+        if #characters == 0 then
+            root:CreateButton('No other saved characters'):SetEnabled(false)
+            return
+        end
         for _, name in ipairs(characters) do
             local character = name
-            submenu:CreateButton(character, function()
-                entrySettings:CloseEditor()
+            root:CreateButton(character, function()
                 local scope = addon.Settings:CanCopyOverrides(character)
                     and 'Copies General settings and compatible per-icon overrides.'
                     or 'Copies General settings only.'
                 StaticPopup_Show('COOLDOWNMANAGERPLUS_COPY_CHARACTER', character, scope, {name=character})
             end)
         end
-        root:CreateDivider()
-        root:CreateButton('Import settings', function() entrySettings:CloseEditor(); setupDialog:OpenImport() end)
-        root:CreateButton('Export settings', function() entrySettings:CloseEditor(); setupDialog:OpenExport() end)
-        root:CreateDivider()
-        root:CreateButton('Reset CM Plus settings', function()
-            entrySettings:CloseEditor()
-            StaticPopup_Show('COOLDOWNMANAGERPLUS_RESET_SETTINGS')
-        end)
     end)
 
     local function Checkbox(label, onClick)
@@ -189,26 +169,12 @@ local function InstallTab()
         end)
         button:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
-    local generalExpanded = true
-    local general = CreateFrame("Button", nil, content, "ListHeaderThreeSliceTemplate")
-    general.label = general:GetTitleRegion()
-    general:SetHeaderText("General settings")
-    general:SetTitleColor(false, NORMAL_FONT_COLOR)
-    general:SetTitleColor(true, NORMAL_FONT_COLOR)
-    general:RegisterForClicks("LeftButtonUp")
-    general:SetClickHandler(function(_, button)
-        if button ~= "LeftButton" then return end
-        generalExpanded = not generalExpanded
-        RefreshRows()
-    end)
-    general:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Display options and addon features.", nil, nil, nil, nil, true)
-        GameTooltip:Show()
-    end)
-    general:SetScript("OnLeave", function() GameTooltip:Hide() end)
     local headers = {}
-    entrySettings = addon.EntrySettings:Create(content, function() RefreshRows() end, panel)
+    addon.EntrySettings:Install(settings)
+    local overrideHint = content:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
+    overrideHint:SetText('Right-click icons in Blizzard’s Buffs and Spells tabs to override settings for individual spells.')
+    overrideHint:SetTextColor(0.65, 0.65, 0.65)
+    overrideHint:SetJustifyH('LEFT')
     RefreshRows = function()
         local db = addon.Buffs:GetDB()
         themeToggle:SetChecked(db.classAuraStyle == true)
@@ -233,18 +199,9 @@ local function InstallTab()
             {name="Utility", controls={swingToggle}},
             {name="Buff display", controls={timerToggle, duplicateToggle}},
         }
-        general:ClearAllPoints()
-        general:SetPoint("TOPLEFT", content, "TOPLEFT")
-        general:SetPoint("RIGHT", content, "RIGHT")
-        general:SetHeight(22)
-        general:UpdateCollapsedState(not generalExpanded)
-        general:Show()
-        for _, section in ipairs(sections) do
-            for _, control in ipairs(section.controls) do control:Hide() end
-        end
-        local offset = 30
+        local offset = 0
         for sectionIndex, section in ipairs(sections) do
-            if generalExpanded and section.controls then
+            if section.controls then
                 local header = headers[sectionIndex]
                 if not header then
                     header = CreateFrame("Frame", nil, content)
@@ -281,13 +238,16 @@ local function InstallTab()
                 offset = offset + 14
             end
         end
-        -- Match the trailing gap used by the per-icon accordion sections.
-        offset = entrySettings:Layout(offset + 12)
+        overrideHint:ClearAllPoints()
+        overrideHint:SetPoint('TOPLEFT', content, 'TOPLEFT', 4, -offset + 8)
+        overrideHint:SetWidth(math.max(180, content:GetWidth() - 16))
+        offset = offset + overrideHint:GetStringHeight() + 16
+        addon.EntrySettings:RefreshIndicators()
         content:SetHeight(math.max(60, offset))
         scroll:UpdateScrollChildRect()
     end
     panel:SetScript("OnShow", function() RefreshRows(); footer:Show() end)
-    panel:SetScript("OnHide", function() footer:Hide(); setupDialog:Hide(); entrySettings:CloseEditor() end)
+    panel:SetScript("OnHide", function() footer:Hide() end)
 
     -- Use the same side-tab art as Blizzard, without inheriting its parentArray.
     local tab = CreateFrame("Frame", nil, settings, "LargeSideTabButtonTemplate")

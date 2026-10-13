@@ -10,12 +10,9 @@ module load order. No build step or package manager is required.
 ## Code map
 
 - `Core/Settings.lua`: AceDB character profiles, defaults, and independent character copying.
-- `Core/SettingsTransfer.lua`: combined setup encoding, validation, override identity checks, and import confirmation.
-- `Core/NativeSettingsTransfer.lua`: selected native layout export and detached import preparation/persistence.
-- `UI/SetupDialog.lua`: addon-owned import and export text dialog.
 - `Libs/`: embedded LibStub, CallbackHandler, and AceDB; preserve upstream licenses.
-- `CooldownManagerPlus.lua`: settings page, General settings accordion, and side tab.
-- `EntrySettings.lua`: per-icon lists, override editor, and dropdowns.
+- `CooldownManagerPlus.lua`: global settings page and side tab.
+- `EntrySettings.lua`: native icon context-menu overrides, indicators, and tooltips.
 - `Overrides.lua`: inheritance and saved per-icon options.
 - `BuffLayout.lua`, `BuffLayoutModel.lua`: buff visibility, grouping, and placement.
 - `BuffEligibility.lua`, `BuffReminder.lua`: eligibility and missing-self-buff reminders.
@@ -51,11 +48,6 @@ decision logic separate from frame operations where practical.
 - The C+ footer owns its character-copy dropdown. Keep it outside the scroll
   content and preserve the native layout dropdown's parent, anchors, menu, and
   callbacks. Show the addon footer only while the C+ page is active.
-- Combined imports must prepare layouts in detached objects, suppress native
-  notifications there, and preserve existing saved layouts. Never deserialize
-  into the live manager. Commit through the native persistence API and reload
-  after the user clicks Import and validation succeeds. Check combat, class/spec
-  and pending native edits before writing settings; no review step is required.
 - Preserve settings saved in the current profile format. In overrides, `nil` inherits the
   default; `false` explicitly disables a setting. Do not conflate them.
 - Each character starts with an independent AceDB profile and built-in defaults.
@@ -65,8 +57,9 @@ decision logic separate from frame operations where practical.
 
 ## Settings UI
 
-Use the existing Blizzard-style controls and accordions. General settings starts
-expanded; per-icon categories start collapsed. Keep spacing consistent.
+Use the existing Blizzard-style controls. The plus tab contains always-visible
+global settings without accordions. Per-icon overrides appear below a separator
+and teal CM Plus header in Blizzard's icon context menus. Keep spacing consistent.
 
 Per-icon labels match their corresponding General settings labels. Dropdowns
 use **Use default**, **Enabled**, and **Disabled**. Explain inheritance with
@@ -81,7 +74,7 @@ the full suite and parse each root Lua file:
 
 ```sh
 for test in tests/*Test.lua; do lua "$test" || exit 1; done
-for source in *.lua Core/*.lua UI/*.lua Libs/*/*.lua; do luac -p "$source" || exit 1; done
+for source in *.lua Core/*.lua Libs/*/*.lua; do luac -p "$source" || exit 1; done
 ```
 
 Tests do not reproduce WoW's secure execution, actual rendering, or combat
@@ -90,10 +83,9 @@ request an in-game check covering combat transitions, Edit Mode, target changes,
 and settings changes as appropriate. For settings integration changes, also
 check dragging icons between Blizzard's displayed and hidden categories.
 
-For settings transfer changes, export a named native layout, change a CM Plus
-setting, then import the exported string. Verify both settings sets after reload
-and confirm other native layouts remain available. Check invalid strings,
-class/spec mismatches, and combat rejection before testing native icon dragging.
+For character-copy changes, verify copied General settings and compatible
+per-icon overrides. Check class mismatches and combat rejection before testing
+native icon dragging.
 
 Documentation-only and simple wording changes need proportionate checks; do not
 add tests that merely repeat the implementation.

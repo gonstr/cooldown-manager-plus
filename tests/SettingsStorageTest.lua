@@ -43,7 +43,4 @@ InCombatLockdown = function() return false end
 CooldownManagerPlusDB.profiles['Source - Realm'].characterClass = 'MAGE'
 assert(destination:CopyCharacter('Source - Realm'), 'copy visual settings from a different class')
 assert(destination:GetDB().centerIcons and next(destination:GetDB().effects) == nil, 'different class copies general settings without per-icon overrides')
-assert(destination:Reset(), 'reset current character settings')
-assert(not destination:GetDB().centerIcons and next(destination:GetDB().effects) == nil, 'reset restores built-in defaults')
-assert(CooldownManagerPlusDB.profiles['Source - Realm'].centerIcons, 'reset leaves other characters untouched')
 print('PASS: real AceDB fresh defaults, character/realm isolation, persistence, independent copying, class and entry compatibility, combat guard')
